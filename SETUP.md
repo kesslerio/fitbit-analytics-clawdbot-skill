@@ -4,10 +4,10 @@
 1.  Go to [dev.fitbit.com/apps](https://dev.fitbit.com/apps) and log in.
 2.  Click **"Register an App"**.
 3.  Fill in the details:
-    *   **Application Name:** `Niemand Assistant`
+    *   **Application Name:** `Personal Assistant`
     *   **Description:** `Personal AI assistant integration for health data analytics.`
     *   **Application Website:** `https://github.com/kesslerio` (or your Gist URL)
-    *   **Organization:** `Niemand`
+    *   **Organization:** `Personal`
     *   **Organization Website:** `https://kessler.io`
     *   **Terms of Service URL:** `https://gist.github.com/kesslerio/99a2490a11549a6b848a5f7cc672fb8f`
     *   **Privacy Policy URL:** `https://gist.github.com/kesslerio/cd1692d15e9286682e3c4ea2d0d979cf`

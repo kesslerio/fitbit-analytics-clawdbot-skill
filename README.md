@@ -16,7 +16,7 @@ Fitbit health and fitness data integration for Clawdbot. Fetch steps, heart rate
 1.  Go to [dev.fitbit.com/apps](https://dev.fitbit.com/apps) and log in.
 2.  Click **"Register an App"**.
 3.  Fill in the details:
-    *   **Application Name:** `Niemand Assistant` (or your choice)
+    *   **Application Name:** `Personal Assistant` (or your choice)
     *   **Description:** `Personal AI analytics.`
     *   **OAuth 2.0 Application Type:** `Personal`
     *   **Redirect URL:** `http://localhost:8080/`
