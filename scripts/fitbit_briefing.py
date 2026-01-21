@@ -7,7 +7,6 @@ Generate concise morning health briefings from Fitbit data.
 Usage:
     python fitbit_briefing.py                    # Today's briefing
     python fitbit_briefing.py --date 2026-01-20  # Specific date
-    python fitbit_briefing.py --verbose          # Detailed briefing
     python fitbit_briefing.py --format json      # JSON output
     python fitbit_briefing.py --format brief     # 3-line brief
 """
@@ -15,8 +14,12 @@ Usage:
 import argparse
 import sys
 import json
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
 
 # Add scripts dir to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -68,7 +71,7 @@ def _format_brief_briefing(data, baseline=None):
     return "\n".join(lines)
 
 
-def _format_text_briefing(data, yesterday_activities=None, yesterday_azm=None, baseline=None, verbose=False):
+def _format_text_briefing(data, yesterday_activities=None, yesterday_azm=None, baseline=None):
     """Format detailed text briefing."""
     lines = []
     date = data.get("date", "Today")
@@ -186,7 +189,6 @@ def main():
     parser.add_argument("--date", help="Date for briefing (YYYY-MM-DD, default: today)")
     parser.add_argument("--format", choices=["text", "brief", "json"], default="text",
                        help="Output format (text=full briefing, brief=3 lines, json=structured)")
-    parser.add_argument("--verbose", action="store_true", help="Detailed briefing")
     
     args = parser.parse_args()
     
@@ -332,7 +334,8 @@ def main():
                 yesterday_azm = azm_list[0].get("value", {})
             else:
                 yesterday_azm = {}
-        except Exception:
+        except Exception as e:
+            logging.warning(f"Failed to fetch Active Zone Minutes for {yesterday}: {e}")
             yesterday_azm = {}
         
         # Build data dict
@@ -362,7 +365,7 @@ def main():
         elif args.format == "brief":
             print(_format_brief_briefing(data))
         else:  # text
-            print(_format_text_briefing(data, yesterday_activities=yesterday_activities, yesterday_azm=yesterday_azm, verbose=args.verbose))
+            print(_format_text_briefing(data, yesterday_activities=yesterday_activities, yesterday_azm=yesterday_azm))
     
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)

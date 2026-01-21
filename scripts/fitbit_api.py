@@ -149,7 +149,6 @@ class FitbitClient:
         - peakActiveZoneMinutes (2× credit)
         """
         # Calculate number of days between start and end
-        from datetime import datetime
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
         days = (end - start).days + 1

@@ -60,6 +60,31 @@ python scripts/fitbit_briefing.py --format json      # JSON output
 # - Trends vs 7-day average
 ```
 
+**Example JSON output:**
+```json
+{
+  "date": "2026-01-21",
+  "steps_today": 8543,
+  "calories_today": 2340,
+  "distance_today": 6.8,
+  "floors_today": 12,
+  "active_minutes": 47,
+  "resting_hr": 58,
+  "avg_hr": 72,
+  "sleep_hours": 7.2,
+  "sleep_efficiency": 89,
+  "awake_count": 2,
+  "yesterday_activities": [
+    {"name": "Run", "duration": 35, "calories": 320}
+  ],
+  "yesterday_azm": {
+    "activeZoneMinutes": 61,
+    "fatBurnActiveZoneMinutes": 39,
+    "cardioActiveZoneMinutes": 22
+  }
+}
+```
+
 **Note:** Cardio Load is NOT available via Fitbit API - it's a Fitbit Premium feature only visible in the mobile app.
 
 ### 2. Data Fetching (CLI)
