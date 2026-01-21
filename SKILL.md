@@ -14,6 +14,9 @@ export FITBIT_CLIENT_SECRET="your_client_secret"
 export FITBIT_ACCESS_TOKEN="your_access_token"
 export FITBIT_REFRESH_TOKEN="your_refresh_token"
 
+# Generate morning briefing with Active Zone Minutes
+python scripts/fitbit_briefing.py
+
 # Fetch daily steps
 python scripts/fitbit_api.py steps --days 7
 
@@ -40,7 +43,51 @@ Use this skill when:
 
 ## Core Workflows
 
-### 1. Data Fetching (CLI)
+### 1. Daily Briefing
+```bash
+# Generate morning health briefing (includes Active Zone Minutes)
+python scripts/fitbit_briefing.py                    # Today's briefing
+python scripts/fitbit_briefing.py --date 2026-01-20  # Specific date
+python scripts/fitbit_briefing.py --format brief     # 3-line summary
+python scripts/fitbit_briefing.py --format json      # JSON output
+
+# Example output includes:
+# - Yesterday's activities (logged exercises)
+# - Yesterday's Active Zone Minutes (total, Fat Burn, Cardio, Peak)
+# - Today's activity summary (steps, calories, floors, distance)
+# - Heart rate (resting, average, zones)
+# - Sleep (duration, efficiency, awake episodes)
+# - Trends vs 7-day average
+```
+
+**Example JSON output:**
+```json
+{
+  "date": "2026-01-21",
+  "steps_today": 8543,
+  "calories_today": 2340,
+  "distance_today": 6.8,
+  "floors_today": 12,
+  "active_minutes": 47,
+  "resting_hr": 58,
+  "avg_hr": 72,
+  "sleep_hours": 7.2,
+  "sleep_efficiency": 89,
+  "awake_count": 2,
+  "yesterday_activities": [
+    {"name": "Run", "duration": 35, "calories": 320}
+  ],
+  "yesterday_azm": {
+    "activeZoneMinutes": 61,
+    "fatBurnActiveZoneMinutes": 39,
+    "cardioActiveZoneMinutes": 22
+  }
+}
+```
+
+**Note:** Cardio Load is NOT available via Fitbit API - it's a Fitbit Premium feature only visible in the mobile app.
+
+### 2. Data Fetching (CLI)
 ```bash
 # Available commands:
 python scripts/fitbit_api.py steps --days 7
@@ -51,7 +98,7 @@ python scripts/fitbit_api.py summary --days 7
 python scripts/fitbit_api.py report --type weekly
 ```
 
-### 2. Data Fetching (Python API)
+### 3. Data Fetching (Python API)
 ```python
 from fitbit_api import FitbitClient
 
@@ -64,7 +111,7 @@ sleep_data = client.get_sleep(start_date="2026-01-01", end_date="2026-01-16")
 activity_summary = client.get_activity_summary(start_date="2026-01-01", end_date="2026-01-16")
 ```
 
-### 3. Analysis
+### 4. Analysis
 ```python
 from fitbit_api import FitbitAnalyzer
 
@@ -73,7 +120,7 @@ summary = analyzer.summary()
 # Returns: avg_steps, avg_resting_hr, step_trend
 ```
 
-### 4. Alerts
+### 5. Alerts
 ```python
 from alerts import FitbitAlerts
 
@@ -103,6 +150,7 @@ low_days = alerts.find_low_days(steps_data)
 | `get_sleep_stages(start, end)` | Detailed sleep stages |
 | `get_spo2(start, end)` | Blood oxygen levels |
 | `get_weight(start, end)` | Weight measurements |
+| `get_active_zone_minutes(start, end)` | Active Zone Minutes (AZM) breakdown |
 
 ## References
 
