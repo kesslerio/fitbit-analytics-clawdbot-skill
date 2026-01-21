@@ -15,6 +15,7 @@ import json
 import argparse
 import urllib.request
 import urllib.error
+import urllib.parse
 import base64
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -47,7 +48,7 @@ class FitbitClient:
         req = urllib.request.Request(url, headers=self.headers)
 
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             if e.code == 401:
@@ -84,7 +85,7 @@ class FitbitClient:
         )
 
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 tokens = json.loads(resp.read().decode("utf-8"))
                 self.access_token = tokens.get("access_token")
                 self.refresh_token = tokens.get("refresh_token")
