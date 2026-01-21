@@ -139,6 +139,27 @@ class FitbitClient:
         endpoint = f"1/user/-/body/weight/date/{start_date}/{end_date}.json"
         return self._request(endpoint)
 
+    def get_active_zone_minutes(self, start_date, end_date):
+        """Fetch Active Zone Minutes (AZM) data
+        
+        Returns AZM breakdown:
+        - activeZoneMinutes (total)
+        - fatBurnActiveZoneMinutes (1× credit)
+        - cardioActiveZoneMinutes (2× credit)
+        - peakActiveZoneMinutes (2× credit)
+        """
+        # Calculate number of days between start and end
+        from datetime import datetime
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+        days = (end - start).days + 1
+        
+        # Use period format: 1d, 7d, 30d, etc.
+        period = f"{days}d" if days <= 30 else "30d"
+        
+        endpoint = f"1/user/-/activities/active-zone-minutes/date/{start_date}/{period}.json"
+        return self._request(endpoint)
+
 
 class FitbitAnalyzer:
     """Analyze Fitbit data"""
