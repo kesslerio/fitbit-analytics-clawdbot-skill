@@ -64,6 +64,47 @@ python scripts/fitbit_api.py sleep --days 1
 python scripts/fitbit_api.py report --type weekly
 ```
 
+### Daily Morning Briefing
+```bash
+# Text format (for Telegram)
+python scripts/fitbit_briefing.py --format text
+
+# Brief format (3-line summary)
+python scripts/fitbit_briefing.py --format brief
+
+# JSON format (for programmatic use)
+python scripts/fitbit_briefing.py --format json
+```
+
+**Example text output:**
+```
+📊 8,543 steps • 2,340 cal
+❤️ Resting HR: 58 • 💤 7.2h sleep
+🏃 Active: 47 min (AZM: 61 total)
+```
+
+**Example JSON output:**
+```json
+{
+  "date": "2026-01-21",
+  "steps_today": 8543,
+  "calories_today": 2340,
+  "distance_today": 6.8,
+  "floors_today": 12,
+  "active_minutes": 47,
+  "resting_hr": 58,
+  "avg_hr": 72,
+  "sleep_hours": 7.2,
+  "sleep_efficiency": 89,
+  "awake_count": 2,
+  "yesterday_azm": {
+    "activeZoneMinutes": 61,
+    "fatBurnActiveZoneMinutes": 39,
+    "cardioActiveZoneMinutes": 22
+  }
+}
+```
+
 ## Structure
 - `scripts/fitbit_api.py`: Main API wrapper and CLI tool.
 - `docs/`: Privacy Policy and Terms of Service.
