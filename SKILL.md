@@ -164,3 +164,23 @@ Fitbit API requires OAuth 2.0 authentication:
 2. Get client_id and client_secret
 3. Complete OAuth flow to get access_token and refresh_token
 4. Set environment variables or pass to scripts
+
+## Automation (Cron Jobs)
+
+Cron jobs are configured in Clawdbot's gateway, not in this repo. Add these to your Clawdbot setup:
+
+### Daily Morning Briefing (8:00 AM)
+```bash
+clawdbot cron add \
+  --name "Morning Fitbit Health Report" \
+  --cron "0 8 * * *" \
+  --tz "America/Los_Angeles" \
+  --session isolated \
+  --wake next-heartbeat \
+  --deliver \
+  --channel telegram \
+  --target "-5028088092" \
+  --message "python3 /path/to/your/scripts/fitbit_briefing.py --format text"
+```
+
+**Note:** Replace `/path/to/your/` with your actual path and `-5028088092` with your Telegram channel/group ID.

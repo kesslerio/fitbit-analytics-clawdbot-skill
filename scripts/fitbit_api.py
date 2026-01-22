@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fitbit Web API Wrapper
+Fitbit Web API Wrapper with Auto-Refresh and Token Persistence
 
 Usage:
     python fitbit_api.py activity --days 7
@@ -13,37 +13,122 @@ import os
 import sys
 import json
 import argparse
+import base64
+import stat
 import urllib.request
 import urllib.error
 import urllib.parse
-import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).parent.parent
+SECRETS_PATH = Path.home() / ".config" / "systemd" / "user" / "secrets.conf"
+TOKEN_CACHE_PATH = Path.home() / ".fitbit-analytics" / "tokens.json"
 
 
 class FitbitClient:
-    """Fitbit Web API client"""
+    """Fitbit Web API client with auto-refresh and token persistence"""
 
     BASE_URL = "https://api.fitbit.com"
+    TOKEN_REFRESH_THRESHOLD_HOURS = 1  # Refresh if expires within 1 hour
 
     def __init__(self, client_id=None, client_secret=None, access_token=None, refresh_token=None):
-        self.client_id = client_id or os.environ.get("FITBIT_CLIENT_ID")
-        self.client_secret = client_secret or os.environ.get("FITBIT_CLIENT_SECRET")
-        self.access_token = access_token or os.environ.get("FITBIT_ACCESS_TOKEN")
-        self.refresh_token = refresh_token or os.environ.get("FITBIT_REFRESH_TOKEN")
+        self.client_id = client_id or self._load_env_from_secrets("FITBIT_CLIENT_ID")
+        self.client_secret = client_secret or self._load_env_from_secrets("FITBIT_CLIENT_SECRET")
+        self._access_token = access_token or self._load_env_from_secrets("FITBIT_ACCESS_TOKEN")
+        self._refresh_token = refresh_token or self._load_env_from_secrets("FITBIT_REFRESH_TOKEN")
+        self._token_expires_at = None
+        self._load_token_expiry()
 
-        if not self.access_token:
-            raise ValueError("FITBIT_ACCESS_TOKEN not set. Get it from https://dev.fitbit.com/apps")
+        if not self._access_token:
+            raise ValueError("FITBIT_ACCESS_TOKEN not set. Get tokens via OAuth flow.")
 
         self.headers = {
-            "Authorization": f"Bearer {self.access_token}",
+            "Authorization": f"Bearer {self._access_token}",
             "Content-Type": "application/json"
         }
 
+    def _load_env_from_secrets(self, key):
+        """Load env var from secrets.conf if not already set"""
+        if os.environ.get(key):
+            return os.environ[key]
+        if SECRETS_PATH.exists():
+            for line in SECRETS_PATH.read_text().split('\n'):
+                if '=' in line and key in line:
+                    return line.split('=', 1)[1].strip().strip('"')
+        return None
+
+    def _load_token_expiry(self):
+        """Load token expiry from cache file or JWT decode"""
+        if TOKEN_CACHE_PATH.exists():
+            try:
+                data = json.loads(TOKEN_CACHE_PATH.read_text())
+                expires_at = data.get("expires_at")
+                if expires_at:
+                    self._token_expires_at = datetime.fromisoformat(expires_at)
+                    return
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Fallback: decode from JWT
+        if self._access_token:
+            self._decode_jwt_expiry()
+
+    def _decode_jwt_expiry(self):
+        """Decode access token JWT to get expiry timestamp"""
+        try:
+            payload = self._access_token.split('.')[1]
+            padding = 4 - len(payload) % 4
+            if padding != 4:
+                payload += '=' * padding
+            data = json.loads(base64.b64decode(payload))
+            exp = data.get("exp")
+            if exp:
+                self._token_expires_at = datetime.fromtimestamp(exp)
+        except (IndexError, json.JSONDecodeError, TypeError):
+            self._token_expires_at = None
+
+    def _should_refresh(self):
+        """Check if token should be refreshed"""
+        if not self._token_expires_at:
+            return True
+        threshold = datetime.now() + timedelta(hours=self.TOKEN_REFRESH_THRESHOLD_HOURS)
+        return self._token_expires_at < threshold
+
+    def _save_tokens(self, access_token, refresh_token, expires_in):
+        """Save tokens to secrets.conf and cache file"""
+        self._access_token = access_token
+        self._refresh_token = refresh_token
+        self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+
+        # Update secrets.conf
+        if SECRETS_PATH.exists():
+            content = SECRETS_PATH.read_text()
+            updates = {
+                "FITBIT_ACCESS_TOKEN": access_token,
+                "FITBIT_REFRESH_TOKEN": refresh_token
+            }
+            for key, value in updates.items():
+                if f'{key}="' in content:
+                    import re
+                    pattern = rf'({key}=")([^"]*)(")'
+                    content = re.sub(pattern, rf'\1{value}\3', content)
+                else:
+                    content += f'\n{key}="{value}"'
+            SECRETS_PATH.write_text(content)
+            os.chmod(str(SECRETS_PATH), stat.S_IRUSR | stat.S_IWUSR)
+
+        # Save to cache file
+        TOKEN_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_CACHE_PATH.write_text(json.dumps({
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_at": self._token_expires_at.isoformat()
+        }, indent=2))
+        os.chmod(str(TOKEN_CACHE_PATH), stat.S_IRUSR | stat.S_IWUSR)
+
     def _request(self, endpoint, date_type="date"):
-        """Make API request using urllib"""
+        """Make API request with auto-refresh"""
         url = f"{self.BASE_URL}/{endpoint}"
         req = urllib.request.Request(url, headers=self.headers)
 
@@ -51,28 +136,21 @@ class FitbitClient:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            if e.code == 401:
-                # Token expired, try to refresh
-                if self._refresh_token():
+            if e.code == 401 and self._should_refresh():
+                if self._refresh_access_token():
                     return self._request(endpoint, date_type)
-                else:
-                    raise ValueError("Fitbit token expired. Refresh failed.")
             raise
 
-    def _refresh_token(self):
-        """Refresh access token"""
-        if not self.client_id or not self.client_secret or not self.refresh_token:
+    def _refresh_access_token(self):
+        """Refresh access token and persist"""
+        if not self.client_id or not self.client_secret or not self._refresh_token:
             return False
 
-        # Create basic auth header
-        auth_string = f"{self.client_id}:{self.client_secret}"
-        auth_bytes = auth_string.encode("utf-8")
-        auth_b64 = base64.b64encode(auth_bytes).decode("utf-8")
-
+        auth_b64 = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
         data = urllib.parse.urlencode({
             "grant_type": "refresh_token",
-            "refresh_token": self.refresh_token
-        }).encode("utf-8")
+            "refresh_token": self._refresh_token
+        }).encode()
 
         req = urllib.request.Request(
             "https://api.fitbit.com/oauth2/token",
@@ -87,11 +165,15 @@ class FitbitClient:
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 tokens = json.loads(resp.read().decode("utf-8"))
-                self.access_token = tokens.get("access_token")
-                self.refresh_token = tokens.get("refresh_token")
-                self.headers["Authorization"] = f"Bearer {self.access_token}"
+                access_token = tokens.get("access_token")
+                refresh_token = tokens.get("refresh_token")
+                expires_in = tokens.get("expires_in", 28800)
+
+                self._save_tokens(access_token, refresh_token, expires_in)
+                self.headers["Authorization"] = f"Bearer {self._access_token}"
                 return True
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as e:
+            print(f"Token refresh failed: {e.code} {e.reason}", file=sys.stderr)
             return False
 
     def get_steps(self, start_date, end_date):
