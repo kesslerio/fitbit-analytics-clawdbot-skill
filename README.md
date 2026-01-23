@@ -1,5 +1,8 @@
 # Fitbit Analytics Skill for Clawdbot 🦞
 
+[![Clawdbot Community Skill](https://img.shields.io/badge/clawdbot-community%20skill-blue)](https://github.com/clawdbot/clawdbot)
+[![ClawdHub Listing Pending](https://img.shields.io/badge/clawdhub-listing%20pending-lightgrey)](https://clawdhub.com)
+
 Fitbit health and fitness data integration for Clawdbot. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports, correlations, and alerts.
 
 ## Features
@@ -50,6 +53,12 @@ export FITBIT_CLIENT_SECRET="YOUR_CLIENT_SECRET"
 
 ## Usage
 
+> Note: For Python imports, set `PYTHONPATH` to the `scripts/` folder:
+>
+> ```bash
+> export PYTHONPATH="$(pwd)/scripts"
+> ```
+
 ### Fetch Daily Stats
 ```bash
 # Get steps for today
@@ -76,11 +85,11 @@ python scripts/fitbit_briefing.py --format brief
 python scripts/fitbit_briefing.py --format json
 ```
 
-**Example text output:**
+**Example brief output:**
 ```
 📊 8,543 steps • 2,340 cal
 ❤️ Resting HR: 58 • 💤 7.2h sleep
-🏃 Active: 47 min (AZM: 61 total)
+🏃 Moderate • ↑ 12% vs avg
 ```
 
 **Example JSON output:**
@@ -96,7 +105,9 @@ python scripts/fitbit_briefing.py --format json
   "avg_hr": 72,
   "sleep_hours": 7.2,
   "sleep_efficiency": 89,
-  "awake_count": 2,
+  "awake_minutes": 12,
+  "activity_level": "Moderate",
+  "steps_trend": 12,
   "yesterday_azm": {
     "activeZoneMinutes": 61,
     "fatBurnActiveZoneMinutes": 39,
@@ -107,6 +118,9 @@ python scripts/fitbit_briefing.py --format json
 
 ## Structure
 - `scripts/fitbit_api.py`: Main API wrapper and CLI tool.
+- `scripts/fitbit_briefing.py`: Morning briefing CLI (text/brief/json output).
+- `scripts/alerts.py`: Threshold-based notifications.
+- `references/`: API and metrics documentation.
 - `docs/`: Privacy Policy and Terms of Service.
 
 ## License
