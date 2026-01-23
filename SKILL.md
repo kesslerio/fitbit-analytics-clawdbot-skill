@@ -1,6 +1,7 @@
 ---
 name: fitbit-analytics
-description: Fitbit health and fitness data integration. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports and alerts.
+description: Fitbit health and fitness data integration. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports and alerts. Requires FITBIT_CLIENT_ID, FITBIT_CLIENT_SECRET, FITBIT_ACCESS_TOKEN, FITBIT_REFRESH_TOKEN.
+metadata: {"clawdbot":{"requires":{"bins":["python3"],"env":["FITBIT_CLIENT_ID","FITBIT_CLIENT_SECRET","FITBIT_ACCESS_TOKEN","FITBIT_REFRESH_TOKEN"]},"homepage":"https://dev.fitbit.com/apps"}}
 ---
 
 # Fitbit Analytics
@@ -73,7 +74,7 @@ python scripts/fitbit_briefing.py --format json      # JSON output
   "avg_hr": 72,
   "sleep_hours": 7.2,
   "sleep_efficiency": 89,
-  "awake_count": 2,
+  "awake_minutes": 12,
   "yesterday_activities": [
     {"name": "Run", "duration": 35, "calories": 320}
   ],
@@ -99,7 +100,9 @@ python scripts/fitbit_api.py report --type weekly
 ```
 
 ### 3. Data Fetching (Python API)
-```python
+```bash
+export PYTHONPATH="{baseDir}/scripts"
+python - <<'PY'
 from fitbit_api import FitbitClient
 
 client = FitbitClient()  # Uses env vars for credentials
@@ -109,32 +112,30 @@ steps_data = client.get_steps(start_date="2026-01-01", end_date="2026-01-16")
 hr_data = client.get_heartrate(start_date="2026-01-01", end_date="2026-01-16")
 sleep_data = client.get_sleep(start_date="2026-01-01", end_date="2026-01-16")
 activity_summary = client.get_activity_summary(start_date="2026-01-01", end_date="2026-01-16")
+PY
 ```
 
 ### 4. Analysis
-```python
+```bash
+export PYTHONPATH="{baseDir}/scripts"
+python - <<'PY'
 from fitbit_api import FitbitAnalyzer
 
 analyzer = FitbitAnalyzer(steps_data, hr_data)
 summary = analyzer.summary()
-# Returns: avg_steps, avg_resting_hr, step_trend
+print(summary)  # Returns: avg_steps, avg_resting_hr, step_trend
+PY
 ```
 
 ### 5. Alerts
-```python
-from alerts import FitbitAlerts
-
-alerts = FitbitAlerts(thresholds={
-    "steps": 8000,
-    "resting_hr": 80,
-    "sleep_hours": 7
-})
-low_days = alerts.find_low_days(steps_data)
+```bash
+python {baseDir}/scripts/alerts.py --days 7 --steps 8000 --sleep 7
 ```
 
 ## Scripts
 
 - `scripts/fitbit_api.py` - Fitbit Web API wrapper, CLI, and analysis
+- `scripts/fitbit_briefing.py` - Morning briefing CLI (text/brief/json output)
 - `scripts/alerts.py` - Threshold-based notifications
 
 ## Available API Methods
@@ -165,6 +166,14 @@ Fitbit API requires OAuth 2.0 authentication:
 3. Complete OAuth flow to get access_token and refresh_token
 4. Set environment variables or pass to scripts
 
+## Environment
+
+Required:
+- `FITBIT_CLIENT_ID`
+- `FITBIT_CLIENT_SECRET`
+- `FITBIT_ACCESS_TOKEN`
+- `FITBIT_REFRESH_TOKEN`
+
 ## Automation (Cron Jobs)
 
 Cron jobs are configured in Clawdbot's gateway, not in this repo. Add these to your Clawdbot setup:
@@ -179,8 +188,8 @@ clawdbot cron add \
   --wake next-heartbeat \
   --deliver \
   --channel telegram \
-  --target "-5028088092" \
+  --target "<YOUR_TELEGRAM_CHAT_ID>" \
   --message "python3 /path/to/your/scripts/fitbit_briefing.py --format text"
 ```
 
-**Note:** Replace `/path/to/your/` with your actual path and `-5028088092` with your Telegram channel/group ID.
+**Note:** Replace `/path/to/your/` with your actual path and `<YOUR_TELEGRAM_CHAT_ID>` with your Telegram channel/group ID.
