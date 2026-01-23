@@ -1,7 +1,7 @@
 ---
 name: fitbit-analytics
 description: Fitbit health and fitness data integration. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports and alerts. Requires FITBIT_CLIENT_ID, FITBIT_CLIENT_SECRET, FITBIT_ACCESS_TOKEN, FITBIT_REFRESH_TOKEN.
-metadata: {"clawdbot":{"requires":{"bins":["python3"],"env":["FITBIT_CLIENT_ID","FITBIT_CLIENT_SECRET","FITBIT_ACCESS_TOKEN","FITBIT_REFRESH_TOKEN"]},"homepage":"https://dev.fitbit.com/apps"}}
+metadata: {"clawdbot":{"requires":{"bins":["python3"],"env":["FITBIT_CLIENT_ID","FITBIT_CLIENT_SECRET","FITBIT_ACCESS_TOKEN","FITBIT_REFRESH_TOKEN"]},"homepage":"https://github.com/kesslerio/fitbit-analytics-clawdbot-skill"}}
 ---
 
 # Fitbit Analytics
