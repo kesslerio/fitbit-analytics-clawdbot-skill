@@ -1,7 +1,7 @@
 ---
 name: fitbit-analytics
 description: Fitbit health and fitness data integration. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports and alerts. Requires FITBIT_CLIENT_ID, FITBIT_CLIENT_SECRET, FITBIT_ACCESS_TOKEN, FITBIT_REFRESH_TOKEN.
-metadata: {"clawdbot":{"requires":{"bins":["python3"],"env":["FITBIT_CLIENT_ID","FITBIT_CLIENT_SECRET","FITBIT_ACCESS_TOKEN","FITBIT_REFRESH_TOKEN"]},"homepage":"https://github.com/kesslerio/fitbit-analytics-clawdbot-skill"}}
+metadata: {"moltbot":{"requires":{"bins":["python3"],"env":["FITBIT_CLIENT_ID","FITBIT_CLIENT_SECRET","FITBIT_ACCESS_TOKEN","FITBIT_REFRESH_TOKEN"]},"homepage":"https://github.com/kesslerio/fitbit-analytics-moltbot-skill"}}
 ---
 
 # Fitbit Analytics
@@ -176,11 +176,11 @@ Required:
 
 ## Automation (Cron Jobs)
 
-Cron jobs are configured in Clawdbot's gateway, not in this repo. Add these to your Clawdbot setup:
+Cron jobs are configured in Moltbot's gateway, not in this repo. Add these to your Moltbot setup:
 
 ### Daily Morning Briefing (8:00 AM)
 ```bash
-clawdbot cron add \
+moltbot cron add \
   --name "Morning Fitbit Health Report" \
   --cron "0 8 * * *" \
   --tz "America/Los_Angeles" \
