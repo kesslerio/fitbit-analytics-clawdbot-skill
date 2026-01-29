@@ -1,1 +1,7 @@
 scripts/__pycache__/
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
