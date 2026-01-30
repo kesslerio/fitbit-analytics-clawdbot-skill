@@ -1,9 +1,9 @@
-# Fitbit Analytics Skill for Moltbot 🦞
+# Fitbit Analytics Skill for OpenClaw 🦞
 
-[![Moltbot Community Skill](https://img.shields.io/badge/moltbot-community%20skill-blue)](https://github.com/moltbot/moltbot)
+[![OpenClaw Community Skill](https://img.shields.io/badge/openclaw-community%20skill-blue)](https://github.com/openclaw/openclaw)
 [![ClawdHub Listed](https://img.shields.io/badge/clawdhub-listed-green)](https://clawdhub.com/skills/fitbit-analytics)
 
-Fitbit health and fitness data integration for Moltbot. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports, correlations, and alerts.
+Fitbit health and fitness data integration for OpenClaw. Fetch steps, heart rate, sleep, activity, calories, and trends from Fitbit Web API. Generate automated health reports, correlations, and alerts.
 
 ## Features
 
