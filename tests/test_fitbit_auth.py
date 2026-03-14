@@ -107,6 +107,20 @@ class FitbitAuthTests(unittest.TestCase):
         self.assertEqual(client._access_token, "old_access")
         self.assertEqual(client._refresh_token, "old_refresh")
 
+    def test_blank_environment_tokens_fall_back_to_secrets(self):
+        with mock.patch.dict(
+            fitbit_api.os.environ,
+            {
+                "FITBIT_ACCESS_TOKEN": "",
+                "FITBIT_REFRESH_TOKEN": "",
+            },
+            clear=False,
+        ):
+            client = self.make_client()
+
+        self.assertEqual(client._access_token, "old_access")
+        self.assertEqual(client._refresh_token, "old_refresh")
+
     def test_request_refreshes_before_api_call_when_token_is_near_expiry(self):
         client = self.make_client()
         client._token_expires_at = datetime.now() + timedelta(minutes=30)
@@ -259,6 +273,22 @@ class FitbitAuthTests(unittest.TestCase):
         self.assertTrue(refreshed)
         self.assertEqual(client._access_token, "rotated_access")
         self.assertEqual(client._refresh_token, "rotated_refresh")
+
+    def test_save_tokens_updates_export_assignments_in_place(self):
+        self.secrets_path.write_text(
+            'export FITBIT_ACCESS_TOKEN="old_access"\n'
+            'export FITBIT_REFRESH_TOKEN="old_refresh"\n',
+            encoding="utf-8",
+        )
+        client = self.make_client()
+
+        client._save_tokens("new_access", "new_refresh", 3600)
+
+        secrets_content = self.secrets_path.read_text(encoding="utf-8")
+        self.assertEqual(secrets_content.count("FITBIT_ACCESS_TOKEN"), 1)
+        self.assertEqual(secrets_content.count("FITBIT_REFRESH_TOKEN"), 1)
+        self.assertIn('export FITBIT_ACCESS_TOKEN="new_access"', secrets_content)
+        self.assertIn('export FITBIT_REFRESH_TOKEN="new_refresh"', secrets_content)
 
     def test_refresh_access_token_waits_for_lock_before_refreshing(self):
         client = self.make_client()

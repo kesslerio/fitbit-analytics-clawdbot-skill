@@ -75,8 +75,10 @@ class FitbitClient:
         """Load a value from secrets.conf."""
         if SECRETS_PATH.exists():
             for line in SECRETS_PATH.read_text().split('\n'):
-                if '=' in line and key in line:
-                    return line.split('=', 1)[1].strip().strip('"')
+                parsed_key, parsed_value, _ = self._parse_secret_assignment(line)
+                if parsed_key == key:
+                    value = parsed_value.strip().strip('"')
+                    return value or None
         return None
 
     def _resolve_value(self, explicit_value, key):
@@ -85,11 +87,11 @@ class FitbitClient:
             return explicit_value, "explicit"
 
         env_value = os.environ.get(key)
-        if env_value is not None:
+        if env_value:
             return env_value, "env"
 
         secret_value = self._load_secret_value(key)
-        if secret_value is not None:
+        if secret_value:
             return secret_value, "secrets"
 
         return None, None
@@ -238,8 +240,9 @@ class FitbitClient:
         assignment = f'{key}="{value}"'
         lines = content.splitlines()
         for index, line in enumerate(lines):
-            if line.startswith(f"{key}="):
-                lines[index] = assignment
+            parsed_key, _, prefix = self._parse_secret_assignment(line)
+            if parsed_key == key:
+                lines[index] = f'{prefix}{assignment}'
                 break
         else:
             lines.append(assignment)
@@ -248,6 +251,23 @@ class FitbitClient:
         if content.endswith("\n") or not content:
             updated += "\n"
         return updated
+
+    def _parse_secret_assignment(self, line):
+        """Parse a secrets.conf assignment and preserve export prefix."""
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            return None, None, ""
+
+        prefix = ""
+        if stripped.startswith("export "):
+            prefix = "export "
+            stripped = stripped[len("export "):].lstrip()
+
+        key, separator, value = stripped.partition("=")
+        if separator != "=":
+            return None, None, prefix
+
+        return key.strip(), value.strip(), prefix
 
     def _mask_token(self, value):
         """Return a short fingerprint for audit logs without exposing secrets."""
