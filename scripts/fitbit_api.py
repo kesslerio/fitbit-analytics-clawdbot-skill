@@ -49,12 +49,10 @@ class FitbitClient:
     REFRESH_RETRY_DELAYS_SECONDS = (1, 2, 4)
 
     def __init__(self, client_id=None, client_secret=None, access_token=None, refresh_token=None):
-        self.client_id = client_id or self._load_env_from_secrets("FITBIT_CLIENT_ID")
-        self.client_secret = client_secret or self._load_env_from_secrets("FITBIT_CLIENT_SECRET")
-        self._explicit_access_token = access_token is not None
-        self._explicit_refresh_token = refresh_token is not None
-        self._access_token = access_token or self._load_env_from_secrets("FITBIT_ACCESS_TOKEN")
-        self._refresh_token = refresh_token or self._load_env_from_secrets("FITBIT_REFRESH_TOKEN")
+        self.client_id, _ = self._resolve_value(client_id, "FITBIT_CLIENT_ID")
+        self.client_secret, _ = self._resolve_value(client_secret, "FITBIT_CLIENT_SECRET")
+        self._access_token, self._access_token_source = self._resolve_value(access_token, "FITBIT_ACCESS_TOKEN")
+        self._refresh_token, self._refresh_token_source = self._resolve_value(refresh_token, "FITBIT_REFRESH_TOKEN")
         self._token_expires_at = None
         self._token_refreshed_at = None
         self._load_token_metadata()
@@ -71,11 +69,30 @@ class FitbitClient:
         """Load env var from secrets.conf if not already set"""
         if os.environ.get(key):
             return os.environ[key]
+        return self._load_secret_value(key)
+
+    def _load_secret_value(self, key):
+        """Load a value from secrets.conf."""
         if SECRETS_PATH.exists():
             for line in SECRETS_PATH.read_text().split('\n'):
                 if '=' in line and key in line:
                     return line.split('=', 1)[1].strip().strip('"')
         return None
+
+    def _resolve_value(self, explicit_value, key):
+        """Resolve config value and record its source precedence."""
+        if explicit_value is not None:
+            return explicit_value, "explicit"
+
+        env_value = os.environ.get(key)
+        if env_value is not None:
+            return env_value, "env"
+
+        secret_value = self._load_secret_value(key)
+        if secret_value is not None:
+            return secret_value, "secrets"
+
+        return None, None
 
     def _load_token_metadata(self):
         """Load token metadata from cache file or JWT decode."""
@@ -99,10 +116,12 @@ class FitbitClient:
         expires_at = data.get("expires_at")
         refreshed_at = data.get("refreshed_at")
 
-        if access_token and (allow_override or not self._explicit_access_token):
+        if access_token and self._can_use_cached_token(self._access_token_source, allow_override):
             self._access_token = access_token
-        if refresh_token and (allow_override or not self._explicit_refresh_token):
+            self._access_token_source = "cache"
+        if refresh_token and self._can_use_cached_token(self._refresh_token_source, allow_override):
             self._refresh_token = refresh_token
+            self._refresh_token_source = "cache"
         if expires_at:
             try:
                 self._token_expires_at = datetime.fromisoformat(expires_at)
@@ -119,6 +138,38 @@ class FitbitClient:
                 "Content-Type": "application/json"
             }
         return True
+
+    def _can_use_cached_token(self, token_source, allow_override):
+        """Determine whether cached token values may replace the current source."""
+        if token_source in ("explicit", "env", "secrets"):
+            return False
+        return allow_override or token_source in (None, "cache")
+
+    def _reload_authoritative_tokens(self):
+        """Reload tokens from their authoritative source before refresh under lock."""
+        if self._access_token_source == "env":
+            latest_access = os.environ.get("FITBIT_ACCESS_TOKEN")
+            if latest_access:
+                self._access_token = latest_access
+        elif self._access_token_source == "secrets":
+            latest_access = self._load_secret_value("FITBIT_ACCESS_TOKEN")
+            if latest_access:
+                self._access_token = latest_access
+
+        if self._refresh_token_source == "env":
+            latest_refresh = os.environ.get("FITBIT_REFRESH_TOKEN")
+            if latest_refresh:
+                self._refresh_token = latest_refresh
+        elif self._refresh_token_source == "secrets":
+            latest_refresh = self._load_secret_value("FITBIT_REFRESH_TOKEN")
+            if latest_refresh:
+                self._refresh_token = latest_refresh
+
+        if self._access_token:
+            self.headers = {
+                "Authorization": f"Bearer {self._access_token}",
+                "Content-Type": "application/json"
+            }
 
     def _decode_jwt_expiry(self):
         """Decode access token JWT to get expiry timestamp"""
@@ -260,7 +311,8 @@ class FitbitClient:
     def refresh_access_token(self, force=False, max_age_hours=None):
         """Refresh access token when due or when forced."""
         with self._token_lock():
-            self._load_cached_tokens(allow_override=True)
+            self._reload_authoritative_tokens()
+            self._load_cached_tokens(allow_override=False)
 
             if not force:
                 if max_age_hours is None:

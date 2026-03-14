@@ -6,6 +6,7 @@ import threading
 import time as pytime
 import unittest
 import urllib.error
+import urllib.parse
 from contextlib import redirect_stderr
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -88,6 +89,24 @@ class FitbitAuthTests(unittest.TestCase):
         self.assertEqual(cache_data["refresh_token"], "456refresh")
         self.assertIn("refreshed_at", cache_data)
 
+    def test_client_prefers_secrets_file_tokens_over_stale_cache(self):
+        self.cache_path.write_text(
+            json.dumps(
+                {
+                    "access_token": "stale_cache_access",
+                    "refresh_token": "stale_cache_refresh",
+                    "expires_at": (datetime.now() + timedelta(hours=1)).isoformat(),
+                    "refreshed_at": datetime.now().isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        client = self.make_client()
+
+        self.assertEqual(client._access_token, "old_access")
+        self.assertEqual(client._refresh_token, "old_refresh")
+
     def test_request_refreshes_before_api_call_when_token_is_near_expiry(self):
         client = self.make_client()
         client._token_expires_at = datetime.now() + timedelta(minutes=30)
@@ -169,6 +188,43 @@ class FitbitAuthTests(unittest.TestCase):
         self.assertEqual(sleep_mock.call_count, len(client.REFRESH_RETRY_DELAYS_SECONDS) - 1)
         self.assertEqual(self.secrets_path.read_text(encoding="utf-8"), before_secrets)
         self.assertEqual(self.cache_path.read_text(encoding="utf-8"), before_cache)
+
+    def test_refresh_access_token_uses_explicit_refresh_token_instead_of_cache(self):
+        self.cache_path.write_text(
+            json.dumps(
+                {
+                    "access_token": "cache_access",
+                    "refresh_token": "cache_refresh",
+                    "expires_at": (datetime.now() + timedelta(hours=1)).isoformat(),
+                    "refreshed_at": datetime.now().isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        client = fitbit_api.FitbitClient(
+            client_id="client",
+            client_secret="secret",
+            access_token="explicit_access",
+            refresh_token="explicit_refresh",
+        )
+
+        def fake_urlopen(req, timeout=10):
+            request_payload = urllib.parse.parse_qs(req.data.decode("utf-8"))
+            self.assertEqual(request_payload["refresh_token"], ["explicit_refresh"])
+            return FakeResponse(
+                {
+                    "access_token": "rotated_access",
+                    "refresh_token": "rotated_refresh",
+                    "expires_in": 3600,
+                }
+            )
+
+        with mock.patch.object(fitbit_api.urllib.request, "urlopen", side_effect=fake_urlopen):
+            refreshed = client.refresh_access_token(force=True)
+
+        self.assertTrue(refreshed)
+        self.assertEqual(client._access_token, "rotated_access")
+        self.assertEqual(client._refresh_token, "rotated_refresh")
 
     def test_refresh_access_token_waits_for_lock_before_refreshing(self):
         client = self.make_client()
